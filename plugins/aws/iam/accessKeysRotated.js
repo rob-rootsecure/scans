@@ -1,5 +1,4 @@
 var async = require('async');
-var AWS = require('aws-sdk');
 var helpers = require('../../../helpers/aws');
 
 module.exports = {
@@ -47,7 +46,7 @@ module.exports = {
         var region = helpers.defaultRegion(settings);
 
         var generateCredentialReport = helpers.addSource(cache, source,
-                ['iam', 'generateCredentialReport', region]);
+            ['iam', 'generateCredentialReport', region]);
 
         if (!generateCredentialReport) return callback(null, results, source);
 
@@ -57,8 +56,8 @@ module.exports = {
             return callback(null, results, source);
         }
 
-        if (generateCredentialReport.data.length <= 2) {
-            helpers.addResult(results, 0, 'No users using access keys found');
+        if (generateCredentialReport.data.length == 1) {
+            helpers.addResult(results, 0, 'No IAM user accounts found');
             return callback(null, results, source);
         }
 
@@ -88,17 +87,17 @@ module.exports = {
             if (obj.user === '<root_account>') return cb();
 
             if (obj.access_key_1_active) {
-                addAccessKeyResults(obj.access_key_1_last_rotated, '1', obj.arn, obj.user_creation_time);
+                addAccessKeyResults(obj.access_key_1_last_rotated, '1', obj.arn + ':access_key_1', obj.user_creation_time);
             }
 
             if (obj.access_key_2_active) {
-                addAccessKeyResults(obj.access_key_2_last_rotated, '2', obj.arn, obj.user_creation_time);
+                addAccessKeyResults(obj.access_key_2_last_rotated, '2', obj.arn + ':access_key_2', obj.user_creation_time);
             }
 
             cb();
         }, function(){
             if (!found) {
-                helpers.addResult(results, 0, 'No users using access keys found');
+                helpers.addResult(results, 0, 'No IAM user accounts using access keys found');
             }
 
             callback(null, results, source);

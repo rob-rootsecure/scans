@@ -19,10 +19,12 @@ module.exports = {
     cloudtrail: regions,
     cloudwatchlogs: regions,
     configservice: regions,
+    dms: regions,
     dynamodb: regions,
     ec2: regions,
     ecr: regions,
     eks: [],
+    elastictranscoder: [],
     elb: regions,
     elbv2: regions,
     es: regions,
@@ -35,7 +37,6 @@ module.exports = {
     redshift: regions,
     apigateway: regions,
     cloudwatch: regions,
-    ecr: regions,
     ecs: regions,
     sagemaker: [],
     ses: [],
@@ -49,5 +50,9 @@ module.exports = {
     transfer: [],
     lambda: regions,
     directconnect: regions,
-    directoryservice: []
+    directoryservice: [],
+    organizations: ['cn-north-1'],
+    guardduty: [],
+    workspaces: ['cn-northwest-1'],
+    xray: regions
 };

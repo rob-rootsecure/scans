@@ -42,7 +42,7 @@ module.exports = {
         var region = helpers.defaultRegion(settings);
 
         var generateCredentialReport = helpers.addSource(cache, source,
-                ['iam', 'generateCredentialReport', region]);
+            ['iam', 'generateCredentialReport', region]);
 
         if (!generateCredentialReport) return callback(null, results, source);
 
@@ -85,11 +85,11 @@ module.exports = {
             if (obj.user === '<root_account>') return cb();
 
             if (obj.access_key_1_active) {
-                addAccessKeyResults(obj.access_key_1_last_used_date, '1', obj.arn);
+                addAccessKeyResults(obj.access_key_1_last_used_date, '1', obj.arn + ':access_key_1');
             }
 
             if (obj.access_key_2_active) {
-                addAccessKeyResults(obj.access_key_2_last_used_date, '2', obj.arn);
+                addAccessKeyResults(obj.access_key_2_last_used_date, '2', obj.arn + ':access_key_2');
             }
 
             cb();

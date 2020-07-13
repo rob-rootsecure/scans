@@ -35,6 +35,8 @@ module.exports = {
 
             async.each(describeTrails.data, function(trail, cb){
                 if (!trail.S3BucketName) return cb();
+                // Skip CloudSploit-managed events bucket
+                if (trail.S3BucketName == helpers.CLOUDSPLOIT_EVENTS_BUCKET) return cb();
 
                 var s3Region = helpers.defaultRegion(settings);
 
@@ -44,14 +46,14 @@ module.exports = {
                 if (!getBucketAcl || getBucketAcl.err || !getBucketAcl.data) {
                     helpers.addResult(results, 3,
                         'Error querying for bucket policy for bucket: ' + trail.S3BucketName + ': ' + helpers.addError(getBucketAcl),
-                        region, 'arn:aws:s3:::' + trail.S3BucketName)
+                        region, 'arn:aws:s3:::' + trail.S3BucketName);
 
                     return cb();
                 }
 
                 var allowsAllUsersTypes = [];
 
-                for (i in getBucketAcl.data.Grants) {
+                for (var i in getBucketAcl.data.Grants) {
                     if (getBucketAcl.data.Grants[i].Grantee.Type &&
                         getBucketAcl.data.Grants[i].Grantee.Type === 'Group' &&
                         getBucketAcl.data.Grants[i].Grantee.URI &&

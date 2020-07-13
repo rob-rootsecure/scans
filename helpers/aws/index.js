@@ -12,10 +12,11 @@ var regions = function(settings) {
 
 var helpers = {
     regions: regions,
-    MAX_REGIONS_AT_A_TIME: 6
+    MAX_REGIONS_AT_A_TIME: 6,
+    CLOUDSPLOIT_EVENTS_BUCKET: 'cloudsploit-engine-trails'
 };
 
-for (s in shared) helpers[s] = shared[s];
-for (f in functions) helpers[f] = functions[f];
+for (var s in shared) helpers[s] = shared[s];
+for (var f in functions) helpers[f] = functions[f];
 
 module.exports = helpers;

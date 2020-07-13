@@ -24,7 +24,7 @@ module.exports = {
         var region = helpers.defaultRegion(settings);
 
         var generateCredentialReport = helpers.addSource(cache, source,
-                ['iam', 'generateCredentialReport', region]);
+            ['iam', 'generateCredentialReport', region]);
 
         if (!generateCredentialReport) return callback(null, results, source);
 
@@ -42,7 +42,7 @@ module.exports = {
 
         var found = false;
 
-        for (r in generateCredentialReport.data) {
+        for (var r in generateCredentialReport.data) {
             var obj = generateCredentialReport.data[r];
 
             // Skip root user and users without passwords
@@ -56,7 +56,7 @@ module.exports = {
                 helpers.addResult(results, 0,
                     'User: ' + obj.user + ' has an MFA device', 'global', obj.arn);
             } else {
-                helpers.addResult(results, 1,
+                helpers.addResult(results, 2,
                     'User: ' + obj.user + ' does not have an MFA device enabled', 'global', obj.arn);
             }
         }

@@ -16,7 +16,6 @@ module.exports = {
         var regions = helpers.regions(settings);
 
         var acctRegion = helpers.defaultRegion(settings);
-        var awsOrGov = helpers.defaultPartition(settings);
         var accountId = helpers.addSource(cache, source, ['sts', 'getCallerIdentity', acctRegion, 'data']);
 
         async.each(regions.athena, function(region, rcb){
@@ -55,10 +54,10 @@ module.exports = {
                 } else {
                     // Check for empty primary workgroups
                     if (wg.Name == 'primary' &&
-                        (!getWorkGroup.data.Workgroup ||
-                         !getWorkGroup.data.Workgroup.Configuration ||
-                         !getWorkGroup.data.Workgroup.Configuration.ResultConfiguration ||
-                         !getWorkGroup.data.Workgroup.Configuration.ResultConfiguration.OutputLocation)) {
+                        (!getWorkGroup.data.WorkGroup ||
+                         !getWorkGroup.data.WorkGroup.Configuration ||
+                         !getWorkGroup.data.WorkGroup.Configuration.ResultConfiguration ||
+                         !getWorkGroup.data.WorkGroup.Configuration.ResultConfiguration.OutputLocation)) {
                         helpers.addResult(results, 0, 'Athena primary workgroup is not enforcing configuration options but is not in use', region, arn);
                     } else {
                         helpers.addResult(results, 2, 'Athena workgroup is not enforcing configuration options', region, arn);

@@ -1,19 +1,23 @@
-[<img src="https://cloudsploit.com/images/logos/text-color-black-png.png" height="130">](https://cloudsploit.com)
+[<img src="https://cloudsploit.com/images/logos/cloudsploit_by_aqua_A02.png" height="130">](https://cloudsploit.com)
 
 [![Build Status](https://travis-ci.org/cloudsploit/scans.svg?branch=master)](https://travis-ci.org/cloudsploit/scans)
-[![Known Vulnerabilities](https://snyk.io/test/github/cloudsploit/scans/badge.svg)](https://snyk.io/test/github/cloudsploit/scans)
 
 CloudSploit Scans
 =================
 
 ## Background
-CloudSploit scans is an open-source project designed to allow detection of security risks in cloud infrastructure accounts. These scripts are designed to return a series of potential misconfigurations and security risks.
+CloudSploit scans is an open-source project designed to allow detection of security risks in cloud infrastructure accounts, including: Amazon Web Services (AWS), Microsoft Azure, Google Cloud Platform (GCP), and Oracle Cloud Infrastructure (OCI). These scripts are designed to return a series of potential misconfigurations and security risks.
 
-## SaaS Product
+## Deployment Options
+CloudSploit is available in two deployment options:
 
-CloudSploit provides free and paid hosted versions of the cloud security scanner with numerous additional features:
+### Self-Hosted
+Follow the instructions below to deploy the open-source version of CloudSploit on your machine in just a few simple steps.
 
-[<img src="https://cloudsploit.com/images/pricing-new.png">](https://console.cloudsploit.com/signup)
+### Hosted at Aqua Cloud
+CloudSploit by Aqua, hosted in the Aqua Cloud, is a fully managed service CSPM solution maintained and updated by the cloud security experts at Aqua. Our hosted scanner handles the scheduling and running of background scans, aggregation of data into dashboards, tools, and visualizations, and integrates with popular third-party services for alerts.
+
+Sign up for [Aqua Cloud](https://cloud.aquasec.com/signup) today!
 
 ## Installation
 Ensure that NodeJS is installed. If not, install it from [here](https://nodejs.org/download/).
@@ -36,11 +40,12 @@ Cloud Infrastructure configuration steps:
 
 * [AWS](#aws)
 * [Azure](#azure) 
+* [GCP](#gcp) 
+* [Oracle](#oracle) 
 
 #### AWS
 
 Create a "cloudsploit" user, with the `SecurityAudit` policy.
-
 
 1. Navigate to the [IAM console](https://console.aws.amazon.com/iam/home).
 1. Go to Users 
@@ -83,6 +88,51 @@ For more information on using our hosted scanner, [click here](#other-notes)
 1. Click "Save".
 1. Repeat the process for the role "Log Analytics Reader"
 
+#### GCP
+
+1. Log into your Google Cloud console and navigate to IAM Admin > Service Accounts.
+1. Click on "Create Service Account".
+1. Enter "CloudSploit" in the "Service account name", then enter "CloudSploit API Access" in the description.
+1. Click on Continue.
+1. Select the role: Project > Viewer.
+1. Click on Continue.
+1. Click on "Create Key".
+1. Leave the default JSON selected.
+1. Click on "Create".
+1. The key will be downloaded to your machine.
+1. Open the JSON key file, in a text editor and copy the Project Id, Client Email and Private Key values into the `index.js` file.
+1. Enter the APIs & Services category.
+1. Select Enable APIS & SERVICES at the top of the page
+1. Search for DNS, then Select the option that appears and Enable it.
+1. Enable all the APIs used to run scans, they are as follows: Stackdriver Monitoring, Stackdriver Logging, Compute, Cloud Key Management, Cloud SQL Admin, Kubernetes, Service Management, and Service Networking.
+
+#### Oracle
+
+1. Log into your Oracle Cloud console and navigate to Administration > Tenancy Details.
+1. Copy your Tenancy OCID and paste it in the index file.
+1. Navigate to Identity > Users.
+1. Click on Create User.
+1. Enter "CloudSploit", then enter "CloudSploit API Access" in the description.
+1. Click on Create.
+1. Copy the User OCID and paste it in the index file.
+1. Follow the steps to Generate an API Signing Key listed on Oracle's Cloud Doc(https://docs.cloud.oracle.com/iaas/Content/API/Concepts/apisigningkey.htm#How).
+1. Open the public key (oci_api_key_public.pem) in your preferred text editor and copy the plain text (everything). Click on Add Public Key, then click on Add.
+1. Copy the public key fingerprint and paste it in the index file.
+1. Open the private key (oci_api_key.pem) in your preferred text editor and paste it in the index file.
+1. Navigate to Identity > Groups.
+1. Click on Create Group.
+1. Enter "SecurityAudit" in the Name field, then enter "CloudSploit Security Audit Access" in the description.
+1. Click on Submit.
+1. Click on the SecurityAudit group in the Groups List and Add the CloudSploit API User to the group.
+1. Navigate to Identity > Policies.
+1. Click on Create Policy.
+1. Enter "SecurityAudit" in the Name field, then enter "CloudSploit Security Audit Policy" in the description.
+1. Copy and paste the following statement:
+1. ALLOW GROUP SecurityAudit to READ all-resources in tenancy
+1. Click on Create.
+1. Navigate to Identity > Compartments.
+1. Select your root compartment or the compartment being audited.
+1. Click on "Copy" by your Compartment OCID.
 
 ## Running
 
@@ -117,21 +167,36 @@ PCI scans map CloudSploit plugins to the Payment Card Industry Data Security Sta
 
 CloudSploit supports output in several formats for consumption by other tools.
 If you do not specify otherwise, CloudSploit writes output to standard output
-(the console). You can specify one or more output formats as follows:
+(the console). 
+
+You can ignore results from output that return an OK status by passing a `--ignore-ok` commandline argument.
+
+You can specify one or more output formats as follows:
 
 ```
 # Output results in CSV (suppressing the console output)
 node index.js --csv=./out.csv
 
+# Output results in JSON (suppressing the console output)
+node index.js --json=./out.json
+
 # Output results in JUnit XML (suppressing the console output)
 node index.js --junit=./out.xml
+
+# Output collection results in JSON
+node index.js --collection=./collection.json
 
 # Output results only to the console (default if omitted)
 node index.js --console
 
 # Output results in all supported formats
 node index.js --console --junit=./out.xml --csv=./out.csv
+
+# Output results in all supported formats for any test that is not OK.
+node index.js --console --junit=./out.xml --csv=./out.csv --ignore-ok
 ```
+
+
 
 ## Architecture
 
@@ -144,8 +209,10 @@ To write a plugin, you want to understand which data is needed and how your clou
 
 ### Collectors
 
-* [AWS Collecttion](#aws-collection)
-* [Azure Collecttion](#azure-collection)
+* [AWS Collection](#aws-collection)
+* [Azure Collection](#azure-collection)
+* [GCP Collection](#gcp-collection)
+* [Oracle Collection](#oracle-collection)
 
 #### AWS Collection
 
@@ -206,6 +273,68 @@ virtualMachineExtensions: {
 ```
 
 You can find the [Azure Collector here.](https://github.com/cloudsploit/scans/blob/master/collectors/azure/collector.js)
+
+#### GCP Collection
+
+The following declaration tells the Cloudsploit collection engine to query the Compute Management Service using the buckets:list call.
+
+```
+buckets: {
+  list: {
+    api: 'storage',
+    version: 'v1',
+    location: null,
+  }
+},
+```
+
+The second section in `collect.js` is `postcalls`, which is an array of objects defining API calls that rely on other calls first returned. For example, if you need to query for all `Storage Buckets`, and then loop through each one and run a more detailed call, you would add the `buckets:list` call in the [`calls`](https://github.com/cloudsploit/scans/blob/master/collectors/google/collector.js#L103-L109) section and then the more detailed call in [`postcalls`](https://github.com/cloudsploit/scans/blob/master/collectors/google/collector.js#L213-L223), setting it to rely on the output of `getIamPolicy` call.
+
+```
+buckets: {
+  getIamPolicy: {
+    api: 'storage',
+    version: 'v1',
+    location: null,
+    reliesOnService: ['buckets'],
+    reliesOnCall: ['list'],
+    filterKey: ['bucket'],
+    filterValue: ['name'],
+  }
+},
+```
+
+You can find the [GCP Collector here.](https://github.com/cloudsploit/scans/blob/master/collectors/google/collector.js)
+
+#### Oracle Collection
+
+The following declaration tells the Cloudsploit collection engine to query the Compute Management Service using the vcn:list call.
+
+```
+vcn: {
+  list: {
+    api: "core",
+    filterKey: ['compartmentId'],
+    filterValue: ['compartmentId'],
+  }
+},
+```
+
+The second section in `collect.js` is `postcalls`, which is an array of objects defining API calls that rely on other calls first returned. For example, if you need to query for all `VCNs`, and then loop through each one and run a more detailed call, you would add the `vcn:list` call in the [`calls`](https://github.com/cloudsploit/scans/blob/master/collectors/oracle/collector.js#L41-L47) section and then the more detailed call in [`postcalls`](https://github.com/cloudsploit/scans/blob/master/collectors/oracle/collector.js#L243-L251), setting it to rely on the output of `get` call.
+
+```
+vcn: {
+  get: {
+    api: "core",
+    reliesOnService: ['vcn'],
+    reliesOnCall: ['list'],
+    filterKey: ['vcnId'],
+    filterValue: ['id'],
+  }
+},
+```
+
+You can find the [Oracle Collector here.](https://github.com/cloudsploit/scans/blob/master/collectors/oracle/collector.js)
 
 ### Scanning Phase
 
@@ -305,8 +434,7 @@ We'll add these API calls to `collect.js`. First, under `calls` add:
 ```
 virtualMachines: {
   listAll: {
-    api: "ComputeManagementClient",
-    arm: true
+    url: 'https://management.azure.com/subscriptions/{subscriptionId}/providers/Microsoft.Compute/virtualMachines?api-version=2019-12-01'
   }
 },
 ```
@@ -315,12 +443,9 @@ Then, under `postcalls`, add:
 ```
 virtualMachineExtensions: {
   list: {
-    api: "ComputeManagementClient",
-    reliesOnService: ['resourceGroups', 'virtualMachines'],
-    reliesOnCall: ['list', 'listAll'],
-    filterKey: ['resourceGroupName', 'name'],
-    filterValue: ['resourceGroupName', 'name'],
-    arm: true
+    reliesOnPath: 'virtualMachines.listAll',
+    properties: ['id'],
+    url: 'https://management.azure.com/{id}/extensions?api-version=2019-12-01'
   }
 },
 ```
@@ -330,7 +455,7 @@ Next, we'll write the plugin. Create a new file in the `plugins/virtualmachines`
 
 In the file, we'll be sure to export the plugin's title, category, description, link, and more information about it. Additionally, we will add any API calls it makes:
 ```
-apis: ['resourceGroups:list', 'virtualMachines:listAll', 'virtualMachineExtensions:list'],
+apis: ['virtualMachines:listAll', 'virtualMachineExtensions:list'],
 ```
 In the `run` function, we can obtain the output of the collection phase from earlier by doing:
 ```
@@ -339,7 +464,7 @@ var virtualMachines = helpers.addSource(cache, source,
 ```
 Then, we can loop through each of the results and do:
 ```
-var virtualMachineExtensions = helpers.addSource(cache, source,     ['virtualMachineExtensions', 'list', location]);
+var virtualMachineExtensions = helpers.addSource(cache, source,     ['virtualMachineExtensions', 'list', location, virtualMachine.id]);
 ```
 The `helpers` function ensures that the proper results are returned from the collection and that they are saved into a "source" variable which can be returned with the results.
 
@@ -360,9 +485,133 @@ The `addResult` function ensures we are adding the results to the `results` arra
 ```
 The `resource` is optional, and the `score` must be between 0 and 3 to indicate PASS, WARN, FAIL, or UNKNOWN.
 
+#### GCP
+To more clearly illustrate writing a new plugin, let us consider the Storage Bucket All Users Policy plugin `plugins/google/storage/bucketAllUsersPolicy.js` . First, we know that we will need to query for a list of buckets via `buckets:list`, then loop through each group and query for the more detailed set of data via `buckets:getIamPolicy`.
+
+We'll add these API calls to `collect.js`. First, under `calls` add:
+
+```
+buckets: {
+  list: {
+    api: 'storage',
+    version: 'v1',
+    location: null,
+  }
+},
+```
+
+Then, under `postcalls`, add:
+```
+buckets: {
+  getIamPolicy: {
+    api: 'storage',
+    version: 'v1',
+    location: null,
+    reliesOnService: ['buckets'],
+    reliesOnCall: ['list'],
+    filterKey: ['bucket'],
+    filterValue: ['name'],
+  }
+},
+```
+CloudSploit will first get the list of buckets, then, it will loop through each one, using the bucket name to get more detailed info via `getIamPolicy`.
+
+Next, we'll write the plugin. Create a new file in the `plugins/google/storage` folder called `bucketAllUsersPolicy.js` (this plugin already exists, but you can create a similar one for the purposes of this example).
+
+In the file, we'll be sure to export the plugin's title, category, description, link, and more information about it. Additionally, we will add any API calls it makes:
+```
+apis: ['buckets:list', 'buckets:getIamPolicy'],
+```
+In the `run` function, we can obtain the output of the collection phase from earlier by doing:
+```
+let bucketPolicyPolicies = helpers.addSource(cache, source, 
+            ['buckets', 'getIamPolicy', region]);
+```
+The `helpers` function ensures that the proper results are returned from the collection and that they are saved into a "source" variable which can be returned with the results.
+
+Now, we can write the plugin functionality by checking for the data relevant to our requirements:
+```
+if (bucketPolicyPolicies.err || !bucketPolicyPolicies.data) {
+  helpers.addResult(results, 3, 'Unable to query storage buckets: ' + helpers.addError(bucketPolicyPolicies), region);
+  return rcb();
+}
+
+if (!bucketPolicyPolicies.data.length) {
+  helpers.addResult(results, 0, 'No storage buckets found', region);
+  return rcb();
+}
+```
+The `addResult` function ensures we are adding the results to the `results` array in the proper format. This function accepts the following:
+```
+(results array, score, message, region, resource)
+```
+The `resource` is optional, and the `score` must be between 0 and 3 to indicate PASS, WARN, FAIL, or UNKNOWN.
+
+#### Oracle
+To more clearly illustrate writing a new plugin, let us consider the Networking Subnet Multi AD plugin `plugins/oracle/networking/subnetMultiAd.js` . First, we know that we will need to query for a list of VCNs via `vcn:list`, then loop through each group and query for the more detailed set of data via `subnet:list`.
+
+We'll add these API calls to `collect.js`. First, under `calls` add:
+
+```
+vcn: {
+  list: {
+    api: "core",
+    filterKey: ['compartmentId'],
+    filterValue: ['compartmentId'],
+  }
+},
+```
+
+Then, under `postcalls`, add:
+```
+subnet: {
+  list: {
+    api: "core",
+    reliesOnService: ['vcn'],
+    reliesOnCall: ['list'],
+    filterKey: ['compartmentId', 'vcnId'],
+    filterValue: ['compartmentId', 'id'],
+    filterConfig: [true, false],
+  }
+},
+```
+CloudSploit will first get the list of vcns, then, it will loop through each one, using the vcn id to get more detailed info via `subnet:list`.
+
+Next, we'll write the plugin. Create a new file in the `plugins/oracle/networking` folder called `subnetMultiAd.js` (this plugin already exists, but you can create a similar one for the purposes of this example).
+
+In the file, we'll be sure to export the plugin's title, category, description, link, and more information about it. Additionally, we will add any API calls it makes:
+```
+apis: ['vcn:list','subnet:list']
+```
+In the `run` function, we can obtain the output of the collection phase from earlier by doing:
+```
+var subnets = helpers.addSource(cache, source,
+                    ['subnet', 'list', region]);
+```
+The `helpers` function ensures that the proper results are returned from the collection and that they are saved into a "source" variable which can be returned with the results.
+
+Now, we can write the plugin functionality by checking for the data relevant to our requirements:
+```
+if ((subnets.err && subnets.err.length) || !subnets.data) {
+  helpers.addResult(results, 3,
+    'Unable to query for subnets: ' + helpers.addError(subnets), region);
+  return rcb();
+}
+
+if (!subnets.data.length) {
+  helpers.addResult(results, 0, 'No subnets found', region);
+  return rcb();
+}
+```
+The `addResult` function ensures we are adding the results to the `results` array in the proper format. This function accepts the following:
+```
+(results array, score, message, region, resource)
+```
+The `resource` is optional, and the `score` must be between 0 and 3 to indicate PASS, WARN, FAIL, or UNKNOWN.
+
 ## Other Notes
 
-When using the [hosted scanner](https://cloudsploit.com/scan), you will be able to see an intuitive visual representation of the scan results. In CloudSploit's console, printable scan results look as folllows:
+When using the [hosted scanner](https://cloudsploit.com/scan), you will be able to see an intuitive visual representation of the scan results. In CloudSploit's console, printable scan results look as follows:
 
 [<img src="https://cloudsploit.com/images/printable-report.png">](https://console.cloudsploit.com/signup)
 
@@ -387,6 +636,29 @@ To create a cross-account role:
 10. Then click on the role name and copy the role ARN for use in the next step.
 ```
 
+### CloudSploit Supplemental Policy
+Allows read only accesss to services not included in the SecurityAudit AWS Managed policy but that are also tested by the CSPM scans.
+
+```$xslt
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "ses:DescribeActiveReceiptRuleSet",
+                "athena:GetWorkGroup",
+                "logs:DescribeLogGroups",
+                "logs:DescribeMetricFilters",
+                "elastictranscoder:ListPipelines",
+                "elasticfilesystem:DescribeFileSystems",
+                "servicequotas:ListServiceQuotas"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        }
+    ]
+}
+```
 ### AWS Inline Policy (Not Recommended)
 
 If you'd prefer to be more restrictive, the following IAM policy contains the exact permissions used by the scan.
@@ -408,6 +680,7 @@ If you'd prefer to be more restrictive, the following IAM policy contains the ex
                 "appmesh:List*",
                 "appsync:List*",
                 "athena:List*",
+                "athena:GetWorkGroup",
                 "autoscaling:Describe*",
                 "batch:DescribeComputeEnvironments",
                 "batch:DescribeJobDefinitions",
@@ -495,6 +768,7 @@ If you'd prefer to be more restrictive, the following IAM policy contains the ex
                 "elasticmapreduce:Describe*",
                 "elasticmapreduce:ListClusters",
                 "elasticmapreduce:ListInstances",
+                "elastictranscoder:ListPipelines",
                 "es:Describe*",
                 "es:ListDomainNames",
                 "events:Describe*",
@@ -599,12 +873,14 @@ If you'd prefer to be more restrictive, the following IAM policy contains the ex
                 "securityhub:List*",
                 "serverlessrepo:GetApplicationPolicy",
                 "serverlessrepo:List*",
+                "servicequotas:ListServiceQuotas",
                 "ses:GetIdentityDkimAttributes",
                 "ses:GetIdentityPolicies",
                 "ses:GetIdentityVerificationAttributes",
                 "ses:ListIdentities",
                 "ses:ListIdentityPolicies",
                 "ses:ListVerifiedEmailAddresses",
+                "ses:DescribeActiveReceiptRuleSet",
                 "shield:Describe*",
                 "shield:List*",
                 "snowball:ListClusters",
@@ -645,7 +921,8 @@ If you'd prefer to be more restrictive, the following IAM policy contains the ex
                 "trustedadvisor:Describe*",
                 "waf:ListWebACLs",
                 "waf-regional:ListWebACLs",
-                "workspaces:Describe*"
+                "workspaces:Describe*",
+                "xray:Get*"
             ]
         },
         {

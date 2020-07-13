@@ -119,7 +119,7 @@ var calls = {
             api: 'compute',
             version: 'v1',
             location: 'null'
-			}
+        }
     },
     subnetworks: {
         list: {
@@ -133,13 +133,18 @@ var calls = {
             api: 'compute',
             version: 'v1',
             location: null
+        },
+        getIamPolicy: {
+            api: 'cloudresourcemanager',
+            version: 'v1',
+            resource: true
         }
     },
     clusters: {
         list: {
             api: 'container',
             version: 'v1beta1',
-            location: 'regions',
+            location: 'global',
             parent: true,
             nested: true,
         }
@@ -150,7 +155,35 @@ var calls = {
             version: 'v1',
             location: null
         }
-    }
+    },
+    metrics: {
+        list: {
+            api: 'logging',
+            version: 'v2',
+            parent: true
+        }
+    },
+    alertPolicies: {
+        list: {
+            api: 'monitoring',
+            version: 'v3',
+            parent: 'name'
+        }
+    },
+    serviceAccounts: {
+        list: {
+            api: 'iam',
+            version: 'v1',
+            parent: 'name'
+        }
+    },
+    sinks: {
+        list: {
+            api: 'logging',
+            version: 'v2',
+            parent: true
+        }
+    },
 };
 
 var postcalls = {
@@ -187,11 +220,36 @@ var postcalls = {
             filterKey: ['bucket'],
             filterValue: ['name'],
         }
+    },
+    keys: {
+        list: {
+            api: 'iam',
+            version: 'v1',
+            parent: 'name',
+            serviceAccount: true,
+            reliesOnService: ['serviceAccounts'],
+            reliesOnCall: ['list'],
+            filterKey: ['id'],
+            filterValue: ['uniqueId']
+        }
+    },
+    users: {
+        list: {
+            api: 'sqladmin',
+            version: 'v1beta4',
+            location: null,
+            reliesOnService: ['instances'],
+            reliesOnSubService: ['sql'],
+            reliesOnCall: ['list'],
+            filterKey: ['instance'],
+            filterValue: ['name'],
+        }
     }
+
 
 };
 
-var collect = function (GoogleConfig, settings, callback) {
+var collect = function(GoogleConfig, settings, callback) {
     var collection = {};
 
     GoogleConfig.maxRetries = 5;
@@ -202,20 +260,20 @@ var collect = function (GoogleConfig, settings, callback) {
     helpers.authenticate(GoogleConfig)
         .then(client => {
             
-            async.eachOfLimit(calls, 10, function (call, service, serviceCb) {
+            async.eachOfLimit(calls, 10, function(call, service, serviceCb) {
                 if (!collection[service]) collection[service] = {};
 
-                helpers.processCall(GoogleConfig, collection, settings, regions, call, service, client, function () {
+                helpers.processCall(GoogleConfig, collection, settings, regions, call, service, client, function() {
                     serviceCb();
                 });
-            }, function () {
-                async.eachOfLimit(postcalls, 10, function (postcallObj, service, postcallCb) {
-                    helpers.processCall(GoogleConfig, collection, settings, regions, postcallObj, service, client, function () {
+            }, function() {
+                async.eachOfLimit(postcalls, 10, function(postcallObj, service, postcallCb) {
+                    helpers.processCall(GoogleConfig, collection, settings, regions, postcallObj, service, client, function() {
                         postcallCb();
-                    })
-                }, function () {
-                    callback(null, collection)
-                })
+                    });
+                }, function() {
+                    callback(null, collection);
+                });
             });
         });
 };

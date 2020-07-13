@@ -11,37 +11,48 @@ module.exports = {
     link: 'http://docs.aws.amazon.com/IAM/latest/UserGuide/getting-started_create-admin-group.html',
     recommended_action: 'Keep two users with admin permissions but ensure other IAM users have more limited permissions.',
     apis: ['IAM:listUsers', 'IAM:listUserPolicies', 'IAM:listAttachedUserPolicies',
-           'IAM:listGroupsForUser',
-           'IAM:listGroups', 'IAM:listGroupPolicies', 'IAM:listAttachedGroupPolicies',
-           'IAM:getUserPolicy', 'IAM:getGroupPolicy'],
+        'IAM:listGroupsForUser',
+        'IAM:listGroups', 'IAM:listGroupPolicies', 'IAM:listAttachedGroupPolicies',
+        'IAM:getUserPolicy', 'IAM:getGroupPolicy'],
     compliance: {
         pci: 'PCI requires that cardholder data can only be accessed by those with ' +
              'a legitimate business need. Limiting the number of IAM administrators ' +
              'reduces the scope of users with potential access to this data.'
     },
     settings: {
-        iam_admin_count: {
-            name: 'IAM Admin Count',
-            description: 'The number of IAM user admins to require in the account',
-            regex: '^[1-9]{1}[0-9]{0,3}$',
+        iam_admin_count_minimum: {
+            name: 'IAM Admin Count Minimum',
+            description: 'The minimum number of IAM user admins to require in the account',
+            regex: '^[0-9]{0,4}$',
+            default: 2
+        },
+        iam_admin_count_maximum: {
+            name: 'IAM Admin Count Maximum',
+            description: 'The maximum number of IAM user admins to require in the account',
+            regex: '^[0-9]{0,4}$',
             default: 2
         }
     },
 
     run: function(cache, settings, callback) {
         var config = {
-            iam_admin_count: settings.iam_admin_count || this.settings.iam_admin_count.default
+            // using the `in` operator because 0 is a valid setting
+            iam_admin_count_minimum: 'iam_admin_count_minimum' in settings
+                ? parseInt(settings.iam_admin_count_minimum)
+                : this.settings.iam_admin_count_minimum.default,
+            iam_admin_count_maximum: 'iam_admin_count_maximum' in settings
+                ? parseInt(settings.iam_admin_count_maximum)
+                : this.settings.iam_admin_count_maximum.default,
         };
-
         var custom = helpers.isCustom(settings, this.settings);
 
         var results = [];
         var source = {};
-        
+
         var region = helpers.defaultRegion(settings);
 
         var listUsers = helpers.addSource(cache, source,
-                ['iam', 'listUsers', region]);
+            ['iam', 'listUsers', region]);
 
         if (!listUsers) return callback(null, results, source);
 
@@ -63,17 +74,17 @@ module.exports = {
 
             // Get managed policies attached to user
             var listAttachedUserPolicies = helpers.addSource(cache, source,
-                    ['iam', 'listAttachedUserPolicies', region, user.UserName]);
+                ['iam', 'listAttachedUserPolicies', region, user.UserName]);
 
             // Get inline policies attached to user
             var listUserPolicies = helpers.addSource(cache, source,
-                    ['iam', 'listUserPolicies', region, user.UserName]);
+                ['iam', 'listUserPolicies', region, user.UserName]);
 
             var listGroupsForUser = helpers.addSource(cache, source,
-                    ['iam', 'listGroupsForUser', region, user.UserName]);
+                ['iam', 'listGroupsForUser', region, user.UserName]);
 
             var getUserPolicy = helpers.addSource(cache, source,
-                    ['iam', 'getUserPolicy', region, user.UserName]);
+                ['iam', 'getUserPolicy', region, user.UserName]);
 
             if (listAttachedUserPolicies.err) {
                 helpers.addResult(results, 3,
@@ -98,7 +109,7 @@ module.exports = {
                 listAttachedUserPolicies.data &&
                 listAttachedUserPolicies.data.AttachedPolicies) {
 
-                for (a in listAttachedUserPolicies.data.AttachedPolicies) {
+                for (var a in listAttachedUserPolicies.data.AttachedPolicies) {
                     var policy = listAttachedUserPolicies.data.AttachedPolicies[a];
 
                     if (policy.PolicyArn === managedAdminPolicy) {
@@ -113,20 +124,20 @@ module.exports = {
                 listUserPolicies.data &&
                 listUserPolicies.data.PolicyNames) {
 
-                for (p in listUserPolicies.data.PolicyNames) {
-                    var policy = listUserPolicies.data.PolicyNames[p];
+                for (var p in listUserPolicies.data.PolicyNames) {
+                    var policyName = listUserPolicies.data.PolicyNames[p];
 
                     if (getUserPolicy &&
-                        getUserPolicy[policy] && 
-                        getUserPolicy[policy].data &&
-                        getUserPolicy[policy].data.PolicyDocument) {
+                        getUserPolicy[policyName] &&
+                        getUserPolicy[policyName].data &&
+                        getUserPolicy[policyName].data.PolicyDocument) {
 
                         var statements = helpers.normalizePolicyDocument(
-                            getUserPolicy[policy].data.PolicyDocument);
+                            getUserPolicy[policyName].data.PolicyDocument);
                         if (!statements) break;
 
                         // Loop through statements to see if admin privileges
-                        for (s in statements) {
+                        for (var s in statements) {
                             var statement = statements[s];
 
                             if (statement.Effect === 'Allow' &&
@@ -146,19 +157,19 @@ module.exports = {
                 listGroupsForUser.data &&
                 listGroupsForUser.data.Groups) {
 
-                for (g in listGroupsForUser.data.Groups) {
+                for (var g in listGroupsForUser.data.Groups) {
                     var group = listGroupsForUser.data.Groups[g];
 
                     // Get managed policies attached to group
                     var listAttachedGroupPolicies = helpers.addSource(cache, source,
-                            ['iam', 'listAttachedGroupPolicies', region, group.GroupName]);
+                        ['iam', 'listAttachedGroupPolicies', region, group.GroupName]);
 
                     // Get inline policies attached to group
                     var listGroupPolicies = helpers.addSource(cache, source,
-                            ['iam', 'listGroupPolicies', region, group.GroupName]);
-                    
+                        ['iam', 'listGroupPolicies', region, group.GroupName]);
+
                     var getGroupPolicy = helpers.addSource(cache, source,
-                            ['iam', 'getGroupPolicy', region, group.GroupName]);
+                        ['iam', 'getGroupPolicy', region, group.GroupName]);
 
                     // See if group has admin managed policy
                     if (listAttachedGroupPolicies &&
@@ -166,9 +177,9 @@ module.exports = {
                         listAttachedGroupPolicies.data.AttachedPolicies) {
 
                         for (a in listAttachedGroupPolicies.data.AttachedPolicies) {
-                            var policy = listAttachedGroupPolicies.data.AttachedPolicies[a];
+                            var policyAttached = listAttachedGroupPolicies.data.AttachedPolicies[a];
 
-                            if (policy.PolicyArn === managedAdminPolicy) {
+                            if (policyAttached.PolicyArn === managedAdminPolicy) {
                                 userAdmins.push({name: user.UserName, arn: user.Arn});
                                 return cb();
                             }
@@ -180,25 +191,25 @@ module.exports = {
                         listGroupPolicies.data &&
                         listGroupPolicies.data.PolicyNames) {
 
-                        for (p in listGroupPolicies.data.PolicyNames) {
-                            var policy = listGroupPolicies.data.PolicyNames[p];
+                        for (var q in listGroupPolicies.data.PolicyNames) {
+                            var policyGroupName = listGroupPolicies.data.PolicyNames[q];
 
                             if (getGroupPolicy &&
-                                getGroupPolicy[policy] && 
-                                getGroupPolicy[policy].data &&
-                                getGroupPolicy[policy].data.PolicyDocument) {
+                                getGroupPolicy[policyGroupName] &&
+                                getGroupPolicy[policyGroupName].data &&
+                                getGroupPolicy[policyGroupName].data.PolicyDocument) {
 
-                                var statements = helpers.normalizePolicyDocument(
-                                    getGroupPolicy[policy].data.PolicyDocument);
-                                if (!statements) break;
+                                var statementsGroup = helpers.normalizePolicyDocument(
+                                    getGroupPolicy[policyGroupName].data.PolicyDocument);
+                                if (!statementsGroup) break;
 
                                 // Loop through statements to see if admin privileges
-                                for (s in statements) {
-                                    var statement = statements[s];
+                                for (s in statementsGroup) {
+                                    var statementGroup = statementsGroup[s];
 
-                                    if (statement.Effect === 'Allow' &&
-                                        statement.Action.indexOf('*') > -1 &&
-                                        statement.Resource.indexOf('*') > -1) {
+                                    if (statementGroup.Effect === 'Allow' &&
+                                        statementGroup.Action.indexOf('*') > -1 &&
+                                        statementGroup.Resource.indexOf('*') > -1) {
                                         userAdmins.push({name: user.UserName, arn: user.Arn});
                                         return cb();
                                     }
@@ -212,18 +223,18 @@ module.exports = {
             cb();
         }, function(){
             // Use admins array
-            if (userAdmins.length < config.iam_admin_count) {
+            if (userAdmins.length < config.iam_admin_count_minimum) {
                 helpers.addResult(results, 1,
-                    'There are fewer than ' + config.iam_admin_count + ' IAM user administrators',
+                    'There are fewer than the minimum ' + config.iam_admin_count_minimum + ' IAM user administrators',
                     'global', null, custom);
-            } else if (userAdmins.length == config.iam_admin_count) {
+            } else if (userAdmins.length >= config.iam_admin_count_minimum && userAdmins.length <= config.iam_admin_count_maximum) {
                 helpers.addResult(results, 0,
-                    'There are ' + config.iam_admin_count + ' IAM user administrators',
+                    'There are ' + userAdmins.length + ' IAM user administrators',
                     'global', null, custom);
             } else {
-                for (u in userAdmins) {
+                for (var u in userAdmins) {
                     helpers.addResult(results, 2,
-                        'User: ' + userAdmins[u].name + ' is one of ' + userAdmins.length + ' IAM user administrators, which exceeds the expected value of: ' + config.iam_admin_count,
+                        'User: ' + userAdmins[u].name + ' is one of ' + userAdmins.length + ' IAM user administrators, which exceeds the expected value of: ' + config.iam_admin_count_maximum,
                         'global', userAdmins[u].arn, custom);
                 }
             }

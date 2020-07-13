@@ -9,6 +9,14 @@ module.exports = {
     link: 'http://docs.aws.amazon.com/IAM/latest/UserGuide/ManagingCredentials.html',
     recommended_action: 'Remove access keys from all users with console access.',
     apis: ['IAM:generateCredentialReport'],
+    settings: {
+        iam_machine_username_regex: {
+            name: 'IAM Machine User Name Regex',
+            description: 'Only inspect users that match this regex',
+            regex: '^.*$',
+            default: '^.*$'
+        }
+    },
 
     run: function(cache, settings, callback) {
         var results = [];
@@ -16,14 +24,18 @@ module.exports = {
 
         var region = helpers.defaultRegion(settings);
 
-        var generateCredentialReport = helpers.addSource(cache, source,
-                ['iam', 'generateCredentialReport', region]);
+        try {
+            var machineUsernameRegex = RegExp(settings.iam_machine_username_regex || this.settings.iam_machine_username_regex.default);
+        } catch (err) {
+            helpers.addResult(results, 3, 'Invalid regex for machine username: ' + machineUsernameRegex, 'global');
+        }
+
+        var generateCredentialReport = helpers.addSource(cache, source, ['iam', 'generateCredentialReport', region]);
 
         if (!generateCredentialReport) return callback(null, results, source);
 
         if (generateCredentialReport.err || !generateCredentialReport.data) {
-            helpers.addResult(results, 3,
-                'Unable to query for users: ' + helpers.addError(generateCredentialReport));
+            helpers.addResult(results, 3, 'Unable to query for users: ' + helpers.addError(generateCredentialReport));
             return callback(null, results, source);
         }
 
@@ -37,6 +49,7 @@ module.exports = {
         async.each(generateCredentialReport.data, function(obj, cb){
             // The root account security is handled in a different plugin
             if (obj.user === '<root_account>') return cb();
+            if (!machineUsernameRegex.test(obj.user)) return cb();
             if (!obj.password_enabled) return cb();
 
             found = true;
